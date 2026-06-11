@@ -1,0 +1,201 @@
+-- Evitar ejecuciones duplicadas
+if _G.MiningServerHubV3Loaded then return end
+_G.MiningServerHubV3Loaded = true
+
+if not game:IsLoaded() then game.Loaded:Wait() end
+
+---------------------------------------------------------
+-- ⚡ SERVICIOS Y CENTRALIZACIÓN DE REMOTOS
+---------------------------------------------------------
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local Players = game:GetService("Players")
+local LocalPlayer = Players.LocalPlayer
+local ServerRemotes = ReplicatedStorage:WaitForChild("Remotes"):WaitForChild("Server")
+
+local ClickEvent = ServerRemotes:WaitForChild("Click")
+local SellEvent = ServerRemotes:WaitForChild("SellAllLoot")
+local UpgradeSpeedEvent = ServerRemotes:WaitForChild("UpgradeWalkspeed")
+local UpgradeSlotEvent = ServerRemotes:WaitForChild("UpgradeSlot")
+local RebirthEvent = ServerRemotes:WaitForChild("Rebirth")
+local HitWallEvent = ServerRemotes:WaitForChild("HitWall") -- Nuevo remoto para los muros
+
+-- Configuración Global del Script
+local Settings = {
+    AutoClick = false,
+    AutoSell = false,
+    AutoUpgrades = false,
+    AutoRebirth = false,
+    AutoHitWall = false, -- Control del nuevo auto muro
+    BurstPower = 10,
+    WallStage = 3,       -- Etapa inicial por defecto (Se puede cambiar en el panel)
+    SellDelay = 1,
+    UpgradeDelay = 2
+}
+
+---------------------------------------------------------
+-- 🛸 DETECTOR AUTOMÁTICO DE ETAPA (ZONA DEL JUGADOR)
+---------------------------------------------------------
+-- Este bucle intenta actualizar la etapa automáticamente basándose en datos del juego
+task.spawn(function()
+    while true do
+        if Settings.AutoHitWall then
+            pcall(function()
+                -- Intenta leer la etapa desde el Leaderstats del jugador si existe
+                local leaderstats = LocalPlayer:FindFirstChild("leaderstats")
+                local stageStat = leaderstats and (leaderstats:FindFirstChild("Stage") or leaderstats:FindFirstChild("Zone") or leaderstats:FindFirstChild("Etapa"))
+                if stageStat then
+                    Settings.WallStage = tonumber(stageStat.Value)
+                end
+            end)
+        end
+        task.wait(2)
+    end
+end)
+
+---------------------------------------------------------
+-- 🚀 HILOS EN PARALELO (AUTOFARM REMOTO TOTAL)
+---------------------------------------------------------
+
+-- Hilo NUEVO: Destructor de Muros a Distancia (Ráfaga Triple)
+task.spawn(function()
+    while true do
+        if Settings.AutoHitWall then
+            pcall(function()
+                local currentStage = Settings.WallStage
+                -- Dispara los 3 tipos de golpe en paralelo a la velocidad de la luz
+                task.spawn(function() HitWallEvent:FireServer(currentStage, 3) end)
+                task.spawn(function() HitWallEvent:FireServer(currentStage, 2) end)
+                task.spawn(function() HitWallEvent:FireServer(currentStage, 1) end)
+            end)
+            task.wait(0.05) -- Delay ultra bajo para romper instantáneo
+        else
+            task.wait(0.5)
+        end
+    end
+end)
+
+-- Hilo 1: Auto Clicker de Excavación (Ráfaga)
+task.spawn(function()
+    while true do
+        if Settings.AutoClick then
+            for i = 1, Settings.BurstPower do
+                task.spawn(function()
+                    pcall(function() ClickEvent:FireServer() end)
+                end)
+            end
+            task.wait(0.05)
+        else
+            task.wait(0.5)
+        end
+    end
+end)
+
+-- Hilo 2: Venta Automática Instantánea
+task.spawn(function()
+    while true do
+        if Settings.AutoSell then
+            pcall(function() SellEvent:FireServer() end)
+            task.wait(Settings.SellDelay)
+        else
+            task.wait(0.5)
+        end
+    end
+end)
+
+-- Hilo 3: Auto Mejoras
+task.spawn(function()
+    while true do
+        if Settings.AutoUpgrades then
+            pcall(function()
+                UpgradeSlotEvent:FireServer("Cash")
+                task.wait(0.1)
+                UpgradeSpeedEvent:FireServer("Cash")
+            end)
+            task.wait(Settings.UpgradeDelay)
+        else
+            task.wait(0.5)
+        end
+    end
+end)
+
+-- Hilo 4: Auto Rebirth
+task.spawn(function()
+    while true do
+        if Settings.AutoRebirth then
+            pcall(function() RebirthEvent:FireServer("Rebirth") end)
+            task.wait(Settings.UpgradeDelay)
+        else
+            task.wait(0.5)
+        end
+    end
+end)
+
+---------------------------------------------------------
+-- 🎨 INTERFAZ GRÁFICA INYECCIÓN V3 (RAYFIELD)
+---------------------------------------------------------
+local Rayfield = loadstring(game:HttpGet('https://sirius.menu/rayfield'))()
+local Window = Rayfield:CreateWindow({
+   Name = "🧱 Wall Breaker & Mining Hub | God Mode 🧱",
+   LoadingTitle = "Actualizando Base de Datos de Remotos...",
+   LoadingSubtitle = "Modo Muro por Gemini AI",
+   ConfigurationSaving = { Enabled = false },
+   KeySystem = false
+})
+
+local MainTab = Window:CreateTab("Auto Farm", 4483362458)
+local ConfigTab = Window:CreateTab("Muros (Etapas)", 4483362458)
+
+-- === PESTAÑA PRINCIPAL ===
+
+MainTab:CreateToggle({
+   Name = "🧱 ¡REVENTAR MUROS DESDE LEJOS! (Auto-Hit)",
+   CurrentValue = false,
+   Flag = "ToggleHitWall",
+   Callback = function(Value) Settings.AutoHitWall = Value end,
+})
+
+MainTab:CreateToggle({
+   Name = "⛏️ Auto Picar/Excavar (Ráfaga)",
+   CurrentValue = false,
+   Flag = "ToggleClickV3",
+   Callback = function(Value) Settings.AutoClick = Value end,
+})
+
+MainTab:CreateToggle({
+   Name = "💰 Auto Vender en el Sitio (Instantáneo)",
+   CurrentValue = false,
+   Flag = "ToggleSellV3",
+   Callback = function(Value) Settings.AutoSell = Value end,
+})
+
+MainTab:CreateToggle({
+   Name = "⚙️ Auto Mejorar Mochila y Caminata",
+   CurrentValue = false,
+   Flag = "ToggleUpgradesV3",
+   Callback = function(Value) Settings.AutoUpgrades = Value end,
+})
+
+MainTab:CreateToggle({
+   Name = "♻️ Auto Rebirth (Bucle Continuo)",
+   CurrentValue = false,
+   Flag = "ToggleRebirthV3",
+   Callback = function(Value) Settings.AutoRebirth = Value end,
+})
+
+-- === PESTAÑA DE CONFIGURACIÓN DE ETAPA ===
+
+ConfigTab:CreateSlider({
+   Name = "Forzar Etapa Manual (Si falla el Auto)",
+   Min = 1,
+   Max = 20,
+   CurrentValue = 3,
+   Increment = 1,
+   ValueName = "Etapa",
+   Callback = function(Value) Settings.WallStage = Value end,
+})
+
+Rayfield:Notify({
+   Name = "¡Módulo de Muros Añadido!",
+   Content = "Filtro de etapas del 1 al 20 configurado correctamente.",
+   Duration = 5
+})
