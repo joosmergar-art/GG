@@ -1,27 +1,34 @@
 -- Evitar ejecuciones duplicadas
-if _G.SpeedSimulatorHubLoaded then return end
-_G.SpeedSimulatorHubLoaded = true
+if _G.SpeedSimulatorUnifiedHubLoaded then return end
+_G.SpeedSimulatorUnifiedHubLoaded = true
 
 if not game:IsLoaded() then game.Loaded:Wait() end
 
 ---------------------------------------------------------
--- ⚡ SERVICIOS Y CONFIGURACIÓN DEL REMOTO
+-- ⚡ SERVICIOS Y CONFIGURACIÓN DE REMOTOS
 ---------------------------------------------------------
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
-local AddSpeedEvent = ReplicatedStorage:WaitForChild("Events"):WaitForChild("AddSpeed")
+local EventsFolder = ReplicatedStorage:WaitForChild("Events")
+
+-- Remotos del juego de velocidad
+local AddSpeedEvent = EventsFolder:WaitForChild("AddSpeed")
+local RequestRebirthRF = EventsFolder:WaitForChild("RequestRebirth")
 
 local Settings = {
     AutoSpeed = false,
-    Delay = 0.01 -- Velocidad de spam masivo
+    AutoRebirth = false,
+    SpeedDelay = 0.01,   -- Ráfaga masiva para correr
+    RebirthDelay = 1     -- Chequeo seguro para RemoteFunction (1 segundo)
 }
 
 ---------------------------------------------------------
--- 🚀 HILO DE FARMEO ULTRA RÁPIDO
+-- 🚀 HILOS EN PARALELO (MÁXIMO RENDIMIENTO)
 ---------------------------------------------------------
+
+-- Hilo 1: Auto Add Speed (Multi-Hilo)
 task.spawn(function()
     while true do
         if Settings.AutoSpeed then
-            -- Enviamos 15 peticiones simultáneas por ciclo para inflar los pasos/velocidad
             for i = 1, 15 do
                 task.spawn(function()
                     pcall(function()
@@ -29,7 +36,24 @@ task.spawn(function()
                     end)
                 end)
             end
-            task.wait(Settings.Delay)
+            task.wait(Settings.SpeedDelay)
+        else
+            task.wait(0.5)
+        end
+    end
+end)
+
+-- Hilo 2: Auto Rebirth (Optimizado para InvokeServer)
+task.spawn(function()
+    while true do
+        if Settings.AutoRebirth then
+            -- Usamos task.spawn interno para que el InvokeServer no trabe el script principal
+            task.spawn(function()
+                pcall(function()
+                    RequestRebirthRF:InvokeServer()
+                end)
+            end)
+            task.wait(Settings.RebirthDelay)
         else
             task.wait(0.5)
         end
@@ -41,8 +65,8 @@ end)
 ---------------------------------------------------------
 local Rayfield = loadstring(game:HttpGet('https://sirius.menu/rayfield'))()
 local Window = Rayfield:CreateWindow({
-   Name = "⚡ Speed Simulator Hub ⚡",
-   LoadingTitle = "Inyectando Conexión de Velocidad...",
+   Name = "⚡ Speed & Rebirth Hub ⚡",
+   LoadingTitle = "Unificando Sistemas de Red...",
    LoadingSubtitle = "Optimizado por Gemini AI",
    ConfigurationSaving = { Enabled = false },
    KeySystem = false
@@ -50,15 +74,24 @@ local Window = Rayfield:CreateWindow({
 
 local MainTab = Window:CreateTab("Auto Farm", 4483362458)
 
+-- === CONTROLES ===
+
 MainTab:CreateToggle({
    Name = "👟 Auto Add Speed (Ráfaga)",
    CurrentValue = false,
-   Flag = "ToggleAutoSpeed",
+   Flag = "ToggleSpeedFarm",
    Callback = function(Value) Settings.AutoSpeed = Value end,
 })
 
+MainTab:CreateToggle({
+   Name = "♻️ Auto Rebirth (Seguro)",
+   CurrentValue = false,
+   Flag = "ToggleSpeedRebirth",
+   Callback = function(Value) Settings.AutoRebirth = Value end,
+})
+
 Rayfield:Notify({
-   Name = "¡Inyector Listo!",
-   Content = "Sistema de velocidad sincronizado correctamente.",
+   Name = "¡Combo Listo!",
+   Content = "Velocidad y Rebirth vinculados correctamente en Delta.",
    Duration = 5
 })
